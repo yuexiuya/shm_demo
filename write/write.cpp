@@ -7,8 +7,10 @@
 #include <errno.h>
 #include <unistd.h>
 
+#ifdef MMAP
+
 #define SHM_NAME "shm_ram"
-#define SHM_SIZE 4096*4
+#define SHM_SIZE 1111
 
 int main(int argc, char *argv[])
 {
@@ -16,6 +18,7 @@ int main(int argc, char *argv[])
 
     /*(1) 创建或者打开一个共享内存*/
     int fd = shm_open(SHM_NAME, O_RDWR|O_CREAT, 0777);
+    printf("[LOG] write fd = %d\n",fd);
     if (fd==-1) {
         printf("[ERROR] %s failed !!! \n","shm_open");
         return -1;
@@ -68,3 +71,65 @@ int main(int argc, char *argv[])
      printf("[LOG] -- write end -- \n");
      return 0;
 }
+#endif
+
+#ifdef SHM_GET
+#include <string>
+#include <sys/shm.h>
+#define FILE_SIZE 1024
+typedef struct _MediaInfo MediaInfo;
+
+struct _MediaInfo {
+    char title[FILE_SIZE];
+    char artist[FILE_SIZE];
+    char album[FILE_SIZE];
+    int size;
+};
+
+int main(int argc, char *argv[]) {
+    MediaInfo info;
+    memset(&info, 0, sizeof(info));
+    /* (1) 创建共享内存 */
+    int shmid = shmget((key_t)1234, sizeof(info), 0666|IPC_CREAT);
+    if( shmid == -1) {
+        printf("[ERROR] %s failed !!! \n","shmget");
+        return -1;
+    } else {
+        printf("[LOG] %s success !!! \n","shmget");
+    }
+
+    /* (2) 将共享内存连接到当前进程的地址空间*/
+    void *pshm = shmat(shmid, NULL, 0);
+    if(pshm == (void *)-1) {
+        printf("[ERROR] %s failed !!! \n","shmat");
+        return -1;
+    } else {
+        printf("[LOG] %s success !!! \n","shmat");
+    }
+    strcpy(info.artist, "MayDay");
+    strcpy(info.title, "Ai");
+    strcpy(info.album, "zhuanji");
+    info.size = 5;
+    printf("[LOG] Memory attached at %lx !!! \n",(long)pshm);
+    printf("[LOG] artist = %s !!! \n",info.artist);
+    printf("[LOG] title = %s !!! \n",info.title);
+    printf("[LOG] album = %s !!! \n",info.album);
+    printf("[LOG] size = %d !!! \n", info.size);
+    /*(3) 从共享内存中获取数据*/
+    memcpy(pshm, &info, sizeof(info));
+
+    /*(4) 把共享内存从当前进程中分离*/
+    int ret = shmdt(pshm);
+    if( ret == -1) {
+        printf("[ERROR] %s failed !!! \n","shmdt");
+        return -1;
+    } else {
+        printf("[LOG] %s success !!! \n","shmdt");
+    }
+
+    for(;;);
+    return 0;
+
+}
+
+#endif

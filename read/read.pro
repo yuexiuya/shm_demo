@@ -8,3 +8,8 @@ LIBS += -lrt -pthread
 
 SOURCES += \
     read.cpp
+
+
+DEFINES += MMAP
+
+#DEFINES += SHM_GET
